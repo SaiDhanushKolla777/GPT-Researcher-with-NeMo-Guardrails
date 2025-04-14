@@ -169,5 +169,3 @@ Built and maintained by [Sai Dhanush Kolla](https://github.com/SaiDhanushKolla77
 ---
 
 **🔒 Secure AI for responsible research — from start to finish.**
-```
-
