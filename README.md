@@ -32,7 +32,7 @@ The system leverages [LangGraph](https://python.langchain.com/docs/langgraph) fo
 
 ---
 
-## ✨ Recruiter-Friendly Highlights
+## ✨ Highlights
 
 - 🔄 **Multi-Agent System**: Agents for research, planning, revision, writing, and publishing operate in a parallel & coordinated fashion
 - 🧠 **LangGraph State Graph**: Models dynamic workflows using conditional routing, looping, and feedback
