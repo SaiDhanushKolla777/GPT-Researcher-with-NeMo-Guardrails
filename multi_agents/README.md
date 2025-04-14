@@ -1,83 +1,118 @@
-# LangGraph x GPT Researcher
-[LangGraph](https://python.langchain.com/docs/langgraph) is a library for building stateful, multi-actor applications with LLMs. 
-This example uses Langgraph to automate the process of an in depth research on any given topic.
+Here’s your **fully updated, polished, and personalized `README.md`** in **Markdown format**, incorporating:
 
-## Use case
-By using Langgraph, the research process can be significantly improved in depth and quality by leveraging multiple agents with specialized skills. 
-Inspired by the recent [STORM](https://arxiv.org/abs/2402.14207) paper, this example showcases how a team of AI agents can work together to conduct research on a given topic, from planning to publication.
+- 🛡️ Your **NeMo Guardrails** integration  
+- ✍️ Your author contribution  
+- ✅ Existing architecture image  
+- 📐 Clear formatting  
+- 💡 Genuine and professional tone  
 
-An average run generates a 5-6 page research report in multiple formats such as PDF, Docx and Markdown.
+---
 
-Please note: Multi-agents are utilizing the same configuration of models like GPT-Researcher does. However, only the SMART_LLM is used for the time being. Please refer to the [LLM config pages](https://docs.gptr.dev/docs/gpt-researcher/llms/llms).
+```markdown
+# 🧠 LangGraph x GPT Researcher (Enhanced with NeMo Guardrails)
 
-## The Multi Agent Team
-The research team is made up of 8 agents:
-- **Human** - The human in the loop that oversees the process and provides feedback to the agents.
-- **Chief Editor** - Oversees the research process and manages the team. This is the "master" agent that coordinates the other agents using Langgraph.
-- **Researcher** (gpt-researcher) - A specialized autonomous agent that conducts in depth research on a given topic.
-- **Editor** - Responsible for planning the research outline and structure.
-- **Reviewer** - Validates the correctness of the research results given a set of criteria.
-- **Revisor** - Revises the research results based on the feedback from the reviewer.
-- **Writer** - Responsible for compiling and writing the final report.
-- **Publisher** - Responsible for publishing the final report in various formats.
+This is a security-enhanced fork of the [GPT-Researcher x LangGraph](https://github.com/assafelovic/gpt-researcher) project, designed to ensure reliable, fact-based, and safe research generation using large language models (LLMs).
 
-## How it works
-Generally, the process is based on the following stages: 
-1. Planning stage
-2. Data collection and analysis
-3. Review and revision
-4. Writing and submission
-5. Publication
+> ✨ **Maintained by [@SaiDhanushKolla777](https://github.com/SaiDhanushKolla777)**  
+> This version integrates **NVIDIA NeMo Guardrails** across the entire multi-agent system to safeguard against hallucinations, misinformation, and unsafe outputs.
 
-### Architecture
+---
+
+## 🔍 Use Case
+
+Using [LangGraph](https://python.langchain.com/docs/langgraph) and multiple LLM agents, this system conducts full-length research projects automatically—from task planning to final publication.
+
+Inspired by the [STORM](https://arxiv.org/abs/2402.14207) paper, the architecture mimics a real-world editorial pipeline using autonomous agents, enhanced now with **AI safety measures** powered by NeMo Guardrails.
+
+> Average output: **5–6 pages** of research in PDF, DOCX, and Markdown formats.
+
+---
+
+## 🔐 What’s New in This Fork
+
+- 🛡️ Integrated **NVIDIA NeMo Guardrails** at every agent level
+- 🧠 Centralized `GuardrailsManager` for consistent safety enforcement
+- ✅ Input/output validation for query prompts, generated content, and final reports
+- 📜 YAML-configured policy for blocking unsafe content and enforcing fact-checking
+- 👥 Seamless human-in-the-loop or fully autonomous modes
+
+---
+
+## 🧩 Multi-Agent Research Team
+
+| Role         | Description |
+|--------------|-------------|
+| 👤 **Human**        | Provides optional feedback during the planning stage |
+| 🧑‍💼 **Chief Editor** | Orchestrates all agents and applies top-level safety logic |
+| 🔎 **Researcher**   | Performs initial and subtopic research |
+| ✍️ **Editor**       | Designs the research plan and outline |
+| 🧪 **Reviewer**     | Reviews research based on user guidelines |
+| 🛠️ **Reviser**      | Updates drafts based on reviewer feedback |
+| 📄 **Writer**       | Compiles intro, body, conclusion, citations |
+| 📤 **Publisher**    | Outputs the report to PDF, DOCX, and Markdown |
+  
+All agents are **guardrail-aware** and automatically sanitize both input and output.
+
+---
+
+## 🧠 Architecture
+
 <div align="center">
-<img align="center" height="600" src="https://github.com/user-attachments/assets/ef561295-05f4-40a8-a57d-8178be687b18">
+<img align="center" height="600" src="https://github.com/user-attachments/assets/ef561295-05f4-40a8-a57d-8178be687b18" alt="LangGraph Multi-Agent Architecture"/>
 </div>
 <br clear="all"/>
 
-### Steps
-More specifically (as seen in the architecture diagram) the process is as follows:
-- Browser (gpt-researcher) - Browses the internet for initial research based on the given research task.
-- Editor - Plans the report outline and structure based on the initial research.
-- For each outline topic (in parallel):
-  - Researcher (gpt-researcher) - Runs an in depth research on the subtopics and writes a draft.
-  - Reviewer - Validates the correctness of the draft given a set of criteria and provides feedback.
-  - Revisor - Revises the draft until it is satisfactory based on the reviewer feedback.
-- Writer - Compiles and writes the final report including an introduction, conclusion and references section from the given research findings.
-- Publisher - Publishes the final report to multi formats such as PDF, Docx, Markdown, etc.
+---
 
-## How to run
-1. Install required packages found in this root folder including `langgraph`:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3. Update env variables, see the [GPT-Researcher docs](https://docs.gptr.dev/docs/gpt-researcher/llms/llms) for more details.
+## 🔁 How It Works (Step-by-Step)
 
-2. Run the application:
-    ```bash
-    python main.py
-    ```
+1. **Initial Research**  
+   The `Researcher` agent conducts a web-based scan on the query.
+   
+2. **Planning**  
+   The `Editor` designs an outline based on the research.
+   
+3. **Optional Feedback**  
+   The `Human` agent can approve or revise the outline.
 
-## Usage
-To change the research query and customize the report, edit the `task.json` file in the main directory.
-#### Task.json contains the following fields:
-- `query` - The research query or task.
-- `model` - The OpenAI LLM to use for the agents.
-- `max_sections` - The maximum number of sections in the report. Each section is a subtopic of the research query.
-- `include_human_feedback` - If true, the user can provide feedback to the agents. If false, the agents will work autonomously.
-- `publish_formats` - The formats to publish the report in. The reports will be written in the `output` directory.
-- `source` - The location from which to conduct the research. Options: `web` or `local`. For local, please add `DOC_PATH` env var.
-- `follow_guidelines` - If true, the research report will follow the guidelines below. It will take longer to complete. If false, the report will be generated faster but may not follow the guidelines.
-- `guidelines` - A list of guidelines that the report must follow.
-- `verbose` - If true, the application will print detailed logs to the console.
+4. **Parallel Research**  
+   Each subtopic is handled independently by `Researcher → Reviewer → Reviser`.
 
-#### For example:
+5. **Final Report**  
+   The `Writer` composes the introduction, conclusion, citations, and layout.
+
+6. **Publishing**  
+   The `Publisher` exports results to multiple formats after a final guardrails check.
+
+---
+
+## ⚙️ How to Run
+
+### 🛠️ 1. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 🔑 2. Setup Environment
+Update your `.env` file with the necessary API keys (OpenAI, Tavily, etc.) and model config.
+
+### ▶️ 3. Launch the App
+```bash
+python multi_agents/main.py
+```
+
+---
+
+## 📝 Configuring the Research (`task.json`)
+
+Modify `multi_agents/task.json` to customize behavior:
+
 ```json
 {
   "query": "Is AI in a hype cycle?",
   "model": "gpt-4o",
-  "max_sections": 3, 
-  "publish_formats": { 
+  "max_sections": 3,
+  "publish_formats": {
     "markdown": true,
     "pdf": true,
     "docx": true
@@ -94,11 +129,55 @@ To change the research query and customize the report, edit the `task.json` file
 }
 ```
 
-## To Deploy
+---
 
-```shell
+## 🧱 Guardrails Configuration
+
+Located in `multi_agents/config/config.yml`, the policy includes:
+
+- ✅ Input self-checks for harmful or disallowed queries
+- ✅ Output validation to prevent hallucinated citations or unsafe text
+- 📚 Whitelisted educational queries and blocked security-sensitive prompts
+
+```yaml
+rails:
+  input:
+    flows:
+      - self check input
+  output:
+    flows:
+      - self check output
+```
+
+---
+
+## ☁️ Optional: Deploy with LangGraph Cloud
+
+```bash
 pip install langgraph-cli
 langgraph up
 ```
 
-From there, see documentation [here](https://github.com/langchain-ai/langgraph-example) on how to use the streaming and async endpoints, as well as the playground.
+For playground UI, streaming endpoints, and logging support, see [LangGraph Cloud Docs](https://github.com/langchain-ai/langgraph-example).
+
+---
+
+## 🙌 Acknowledgments
+
+- Original project by [@assafelovic](https://github.com/assafelovic)
+- Guardrails framework powered by [NVIDIA NeMo Guardrails](https://developer.nvidia.com/nemo)
+- Infrastructure orchestrated via [LangGraph](https://github.com/langchain-ai/langgraph)
+
+---
+
+## 📬 Contact & Collaboration
+
+Built and maintained by [Sai Dhanush Kolla](https://github.com/SaiDhanushKolla777)  
+💼 [LinkedIn](https://www.linkedin.com/in/kolla-saidhanush/)  
+📬 [Email](mailto:saidhanushkolla1880@gmail.com)
+
+---
+
+**🔒 Secure AI for responsible research — from start to finish.**
+```
+
