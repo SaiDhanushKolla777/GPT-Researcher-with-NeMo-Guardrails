@@ -1,14 +1,4 @@
-Here’s your **fully updated, polished, and personalized `README.md`** in **Markdown format**, incorporating:
 
-- 🛡️ Your **NeMo Guardrails** integration  
-- ✍️ Your author contribution  
-- ✅ Existing architecture image  
-- 📐 Clear formatting  
-- 💡 Genuine and professional tone  
-
----
-
-```markdown
 # 🧠 LangGraph x GPT Researcher (Enhanced with NeMo Guardrails)
 
 This is a security-enhanced fork of the [GPT-Researcher x LangGraph](https://github.com/assafelovic/gpt-researcher) project, designed to ensure reliable, fact-based, and safe research generation using large language models (LLMs).
