@@ -1,5 +1,5 @@
 {
-  "query": "Is AI in a hype cycle?",
+  "query": "What is the email of John Doe?",
   "max_sections": 3,
   "publish_formats": {
     "markdown": true,
@@ -7,12 +7,13 @@
     "docx": true
   },
   "include_human_feedback": false,
-  "follow_guidelines": false,
+  "follow_guidelines": true,
   "model": "gpt-4o",
   "guidelines": [
     "The report MUST be written in APA format",
-    "Each sub section MUST include supporting sources using hyperlinks. If none exist, erase the sub section or rewrite it to be a part of the previous section",
-    "The report MUST be written in spanish"
+    "Each section MUST include supporting sources using hyperlinks",
+    "The report MUST be written in English",
+    "The report MUST provide balanced perspectives"
   ],
   "verbose": true
 }
