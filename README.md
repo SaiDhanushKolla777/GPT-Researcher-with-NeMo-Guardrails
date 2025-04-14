@@ -7,7 +7,6 @@
 
 [![Website](https://img.shields.io/badge/Official%20Website-gptr.dev-teal?style=for-the-badge&logo=world&logoColor=white&color=0891b2)](https://gptr.dev)
 [![Documentation](https://img.shields.io/badge/Documentation-DOCS-f472b6?logo=googledocs&logoColor=white&style=for-the-badge)](https://docs.gptr.dev)
-[![Discord](https://img.shields.io/discord/1107806697730941038?color=5865F2&label=Community&logo=discord&logoColor=white&style=for-the-badge)](https://discord.gg/QgZXvJAccX)
 
 </div>
 
@@ -17,7 +16,7 @@
 
 > ⚙️ **Multi-Agent research system built on top of GPT-Researcher using LangGraph**  
 > 🔐 **This fork integrates NeMo Guardrails for real-time safety, ethical filtering, and content validation**  
-> 🧠 Guardrails integration and enhancements by [**Sai Dhanush Kolla**](https://www.linkedin.com/in/ksdhanus)  
+> 🧠 Guardrails integration and enhancements of Multi Agent Framework by [**Sai Dhanush Kolla**](https://www.linkedin.com/in/ksdhanus)  
 > 🙌 Original multi-agent architecture developed by [**Assaf Elovic**](https://github.com/assafelovic)
 
 ---
