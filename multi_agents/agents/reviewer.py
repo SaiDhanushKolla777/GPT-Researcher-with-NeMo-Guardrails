@@ -1,5 +1,6 @@
 from .utils.views import print_agent_output
 from .utils.llms import call_model
+from loguru import logger
 
 TEMPLATE = """You are an expert research article reviewer. \
 Your goal is to review research drafts and provide feedback to the reviser only based on specific guidelines. \
@@ -7,10 +8,11 @@ Your goal is to review research drafts and provide feedback to the reviser only 
 
 
 class ReviewerAgent:
-    def __init__(self, websocket=None, stream_output=None, headers=None):
+    def __init__(self, websocket=None, stream_output=None, headers=None, guardrails=None):
         self.websocket = websocket
         self.stream_output = stream_output
         self.headers = headers or {}
+        self.guardrails = guardrails
 
     async def review_draft(self, draft_state: dict):
         """
@@ -36,12 +38,43 @@ If the draft meets all the guidelines, please return None.
 
 Guidelines: {guidelines}\nDraft: {draft_state.get("draft")}\n
 """
+        
+        # Apply guardrails to the review prompt if available
+        if self.guardrails:
+            try:
+                safe_prompt = await self.guardrails.apply_guardrails(
+                    review_prompt,
+                    agent_type="reviewer",
+                    is_input=True
+                )
+                review_prompt = safe_prompt
+                logger.info("Applied guardrails to review prompt")
+            except Exception as e:
+                logger.error(f"Error applying guardrails to review prompt: {e}")
+                
         prompt = [
             {"role": "system", "content": TEMPLATE},
             {"role": "user", "content": review_prompt},
         ]
 
-        response = await call_model(prompt, model=task.get("model"))
+        response = await call_model(
+            prompt, 
+            model=task.get("model"),
+            agent_type="reviewer"
+        )
+
+        # Apply guardrails to the review response if available
+        if self.guardrails and response:
+            try:
+                safe_response = await self.guardrails.apply_guardrails(
+                    response,
+                    agent_type="reviewer",
+                    is_input=False
+                )
+                response = safe_response
+                logger.info("Applied guardrails to review response")
+            except Exception as e:
+                logger.error(f"Error applying guardrails to review response: {e}")
 
         if task.get("verbose"):
             if self.websocket and self.stream_output:

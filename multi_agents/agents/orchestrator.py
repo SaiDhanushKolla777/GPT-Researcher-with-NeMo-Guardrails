@@ -6,6 +6,8 @@ from langgraph.graph import StateGraph, END
 from .utils.views import print_agent_output
 from ..memory.research import ResearchState
 from .utils.utils import sanitize_filename
+from multi_agents.guardrails.guardrails_manager import GuardrailsManager
+from loguru import logger
 
 # Import agent classes
 from . import \
@@ -13,13 +15,15 @@ from . import \
     EditorAgent, \
     PublisherAgent, \
     ResearchAgent, \
-    HumanAgent
+    HumanAgent, \
+    ReviewerAgent, \
+    ReviserAgent
 
 
 class ChiefEditorAgent:
     """Agent responsible for managing and coordinating editing tasks."""
 
-    def __init__(self, task: dict, websocket=None, stream_output=None, tone=None, headers=None):
+    def __init__(self, task: dict, websocket=None, stream_output=None, tone=None, headers=None, guardrails_manager=None):
         self.task = task
         self.websocket = websocket
         self.stream_output = stream_output
@@ -27,6 +31,9 @@ class ChiefEditorAgent:
         self.tone = tone
         self.task_id = self._generate_task_id()
         self.output_dir = self._create_output_directory()
+        
+        # Initialize guardrails
+        self.guardrails_manager = guardrails_manager or GuardrailsManager()
 
     def _generate_task_id(self):
         # Currently time based, but can be any unique identifier
@@ -42,11 +49,13 @@ class ChiefEditorAgent:
 
     def _initialize_agents(self):
         return {
-            "writer": WriterAgent(self.websocket, self.stream_output, self.headers),
-            "editor": EditorAgent(self.websocket, self.stream_output, self.headers),
-            "research": ResearchAgent(self.websocket, self.stream_output, self.tone, self.headers),
-            "publisher": PublisherAgent(self.output_dir, self.websocket, self.stream_output, self.headers),
-            "human": HumanAgent(self.websocket, self.stream_output, self.headers)
+            "writer": WriterAgent(self.websocket, self.stream_output, self.headers, guardrails=self.guardrails_manager),
+            "editor": EditorAgent(self.websocket, self.stream_output, self.headers, guardrails=self.guardrails_manager),
+            "research": ResearchAgent(self.websocket, self.stream_output, self.tone, self.headers, guardrails=self.guardrails_manager),
+            "publisher": PublisherAgent(self.output_dir, self.websocket, self.stream_output, self.headers, guardrails=self.guardrails_manager),
+            "human": HumanAgent(self.websocket, self.stream_output, self.headers),
+            "reviewer": ReviewerAgent(self.websocket, self.stream_output, self.headers, guardrails=self.guardrails_manager),
+            "reviser": ReviserAgent(self.websocket, self.stream_output, self.headers, guardrails=self.guardrails_manager)
         }
 
     def _create_workflow(self, agents):
@@ -59,6 +68,11 @@ class ChiefEditorAgent:
         workflow.add_node("writer", agents["writer"].run)
         workflow.add_node("publisher", agents["publisher"].run)
         workflow.add_node("human", agents["human"].review_plan)
+        
+        # Add reviewer and reviser nodes if they exist in the workflow
+        if "reviewer" in agents and "reviser" in agents:
+            workflow.add_node("reviewer", agents["reviewer"].run)
+            workflow.add_node("reviser", agents["reviser"].run)
 
         # Add edges
         self._add_workflow_edges(workflow)
@@ -102,17 +116,75 @@ class ChiefEditorAgent:
         Returns:
             The result of the research task.
         """
-        research_team = self.init_research_team()
-        chain = research_team.compile()
+        try:
+            # Apply guardrails to the initial query
+            if self.guardrails_manager:
+                try:
+                    original_query = self.task.get("query", "")
+                    safe_query = await self.guardrails_manager.apply_guardrails(
+                        original_query, 
+                        agent_type="chief_editor",
+                        is_input=True
+                    )
+                    
+                    # Check if query was blocked
+                    if isinstance(safe_query, str) and ("cannot assist" in safe_query.lower() or "violated guidelines" in safe_query.lower()):
+                        logger.warning("Research query blocked by guardrails")
+                        message = "This research query violates our guidelines."
+                        if self.websocket and self.stream_output:
+                            await self.stream_output("logs", "guardrails", message, self.websocket)
+                        else:
+                            print_agent_output(message, "GUARDRAILS")
+                        return {"error": "Research query violated guidelines", "report": message}
+                        
+                    # Update query with guardrailed version if changed
+                    if original_query != safe_query:
+                        self.task["query"] = safe_query
+                        logger.info("Query modified by guardrails")
+                        
+                except Exception as e:
+                    logger.error(f"Error applying guardrails to query: {e}")
+            
+            # Initialize the research team and workflow
+            research_team = self.init_research_team()
+            chain = research_team.compile()
 
-        await self._log_research_start()
+            await self._log_research_start()
 
-        config = {
-            "configurable": {
-                "thread_id": task_id,
-                "thread_ts": datetime.datetime.utcnow()
+            config = {
+                "configurable": {
+                    "thread_id": task_id,
+                    "thread_ts": datetime.datetime.utcnow()
+                }
             }
-        }
 
-        result = await chain.ainvoke({"task": self.task}, config=config)
-        return result
+            # Run the research workflow
+            result = await chain.ainvoke({"task": self.task}, config=config)
+            
+            # Handle string result (common when guardrails block content)
+            if isinstance(result, str):
+                logger.info("Received string result, wrapping in dictionary")
+                result = {"report": result}
+            
+            # Apply guardrails to the final result if needed
+            if self.guardrails_manager and isinstance(result, dict) and "report" in result:
+                try:
+                    report_content = result.get("report", "")
+                    if report_content:
+                        result["report"] = await self.guardrails_manager.apply_guardrails(
+                            report_content,
+                            agent_type="chief_editor",
+                            is_input=False
+                        )
+                except Exception as e:
+                    logger.error(f"Error applying guardrails to final report: {e}")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in research task: {e}")
+            if self.websocket and self.stream_output:
+                await self.stream_output("logs", "error", f"Research error: {str(e)}", self.websocket)
+            else:
+                print_agent_output(f"Research error: {str(e)}", "ERROR")
+            return {"error": str(e), "report": f"An error occurred: {str(e)}"}

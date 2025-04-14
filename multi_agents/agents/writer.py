@@ -2,6 +2,7 @@ from datetime import datetime
 import json5 as json
 from .utils.views import print_agent_output
 from .utils.llms import call_model
+from loguru import logger
 
 sample_json = """
 {
@@ -14,10 +15,11 @@ sample_json = """
 
 
 class WriterAgent:
-    def __init__(self, websocket=None, stream_output=None, headers=None):
+    def __init__(self, websocket=None, stream_output=None, headers=None, guardrails=None):
         self.websocket = websocket
         self.stream_output = stream_output
         self.headers = headers
+        self.guardrails = guardrails
 
     def get_headers(self, research_state: dict):
         return {
@@ -59,11 +61,67 @@ class WriterAgent:
             },
         ]
 
+        # Apply guardrails to the writing prompt if available
+        if self.guardrails:
+            try:
+                writing_content = prompt[1]["content"]
+                safe_content = await self.guardrails.apply_guardrails(
+                    writing_content,
+                    agent_type="writer",
+                    is_input=True
+                )
+                prompt[1]["content"] = safe_content
+            except Exception as e:
+                logger.error(f"Error applying guardrails to writing input: {e}")
+
         response = await call_model(
             prompt,
             task.get("model"),
             response_format="json",
+            agent_type="writer"
         )
+        
+        # Handle case where response is a string (could happen after guardrails processing)
+        if isinstance(response, str):
+            try:
+                # Try to parse the string as JSON
+                logger.info("Attempting to parse string response as JSON")
+                try:
+                    response = json.loads(response)
+                except:
+                    # Try with json5 which is more forgiving
+                    response = json.loads(response)
+            except Exception as e:
+                logger.error(f"Failed to parse response as JSON: {e}")
+                # Create a minimum valid structure to prevent downstream errors
+                response = {
+                    "table_of_contents": "Error generating table of contents",
+                    "introduction": "Error generating introduction",
+                    "conclusion": "Error generating conclusion",
+                    "sources": ["Error retrieving sources"]
+                }
+        
+        # Apply guardrails to individual sections if needed
+        if self.guardrails and isinstance(response, dict):
+            try:
+                for key in ["introduction", "conclusion"]:
+                    if key in response and response[key]:
+                        safe_text = await self.guardrails.apply_guardrails(
+                            response[key],
+                            agent_type="writer",
+                            is_input=False
+                        )
+                        response[key] = safe_text
+            except Exception as e:
+                logger.error(f"Error applying guardrails to written sections: {e}")
+                
+        # Ensure required keys exist
+        required_keys = ["table_of_contents", "introduction", "conclusion", "sources"]
+        for key in required_keys:
+            if key not in response:
+                logger.warning(f"Missing required key in response: {key}")
+                response[key] = f"Error generating {key}"
+                
         return response
 
     async def revise_headers(self, task: dict, headers: dict):
@@ -84,11 +142,52 @@ Headers Data: {headers}\n
             },
         ]
 
+        # Apply guardrails to headers prompt if available
+        if self.guardrails:
+            try:
+                headers_content = prompt[1]["content"]
+                safe_content = await self.guardrails.apply_guardrails(
+                    headers_content,
+                    agent_type="writer",
+                    is_input=True
+                )
+                prompt[1]["content"] = safe_content
+            except Exception as e:
+                logger.error(f"Error applying guardrails to headers input: {e}")
+
         response = await call_model(
             prompt,
             task.get("model"),
             response_format="json",
+            agent_type="writer"
         )
+        
+        # Handle string response (could happen after guardrails processing)
+        if isinstance(response, str):
+            try:
+                logger.info("Attempting to parse headers string response as JSON")
+                try:
+                    response = json.loads(response)
+                except:
+                    response = json.loads(response)
+            except Exception as e:
+                logger.error(f"Failed to parse headers response as JSON: {e}")
+                # Use original headers as fallback
+                response = headers
+        
+        # Apply guardrails to headers response
+        if self.guardrails and isinstance(response, dict):
+            try:
+                for key, value in response.items():
+                    if isinstance(value, str) and value:
+                        response[key] = await self.guardrails.apply_guardrails(
+                            value,
+                            agent_type="writer",
+                            is_input=False
+                        )
+            except Exception as e:
+                logger.error(f"Error applying guardrails to headers: {e}")
+                
         return {"headers": response}
 
     async def run(self, research_state: dict):
@@ -105,38 +204,67 @@ Headers Data: {headers}\n
                 agent="WRITER",
             )
 
-        research_layout_content = await self.write_sections(research_state)
+        try:
+            research_layout_content = await self.write_sections(research_state)
 
-        if research_state.get("task").get("verbose"):
-            if self.websocket and self.stream_output:
-                research_layout_content_str = json.dumps(
-                    research_layout_content, indent=2
-                )
-                await self.stream_output(
-                    "logs",
-                    "research_layout_content",
-                    research_layout_content_str,
-                    self.websocket,
-                )
-            else:
-                print_agent_output(research_layout_content, agent="WRITER")
+            if research_state.get("task", {}).get("verbose", False):
+                if self.websocket and self.stream_output:
+                    research_layout_content_str = json.dumps(
+                        research_layout_content, indent=2
+                    )
+                    await self.stream_output(
+                        "logs",
+                        "research_layout_content",
+                        research_layout_content_str,
+                        self.websocket,
+                    )
+                else:
+                    print_agent_output(research_layout_content, agent="WRITER")
 
-        headers = self.get_headers(research_state)
-        if research_state.get("task").get("follow_guidelines"):
-            if self.websocket and self.stream_output:
-                await self.stream_output(
-                    "logs",
-                    "rewriting_layout",
-                    "Rewriting layout based on guidelines...",
-                    self.websocket,
+            headers = self.get_headers(research_state)
+            if research_state.get("task", {}).get("follow_guidelines", False):
+                if self.websocket and self.stream_output:
+                    await self.stream_output(
+                        "logs",
+                        "rewriting_layout",
+                        "Rewriting layout based on guidelines...",
+                        self.websocket,
+                    )
+                else:
+                    print_agent_output(
+                        "Rewriting layout based on guidelines...", agent="WRITER"
+                    )
+                headers_result = await self.revise_headers(
+                    task=research_state.get("task"), headers=headers
                 )
-            else:
-                print_agent_output(
-                    "Rewriting layout based on guidelines...", agent="WRITER"
-                )
-            headers = await self.revise_headers(
-                task=research_state.get("task"), headers=headers
-            )
-            headers = headers.get("headers")
+                
+                # Ensure we properly handle the headers result
+                if isinstance(headers_result, dict) and "headers" in headers_result:
+                    headers = headers_result.get("headers")
+                else:
+                    logger.warning("Headers revise did not return expected format")
 
-        return {**research_layout_content, "headers": headers}
+            # Ensure research_layout_content is a dictionary
+            if not isinstance(research_layout_content, dict):
+                logger.error(f"research_layout_content is not a dictionary: {type(research_layout_content)}")
+                research_layout_content = {
+                    "table_of_contents": "Error generating content",
+                    "introduction": "Error generating content",
+                    "conclusion": "Error generating content",
+                    "sources": ["Error retrieving sources"]
+                }
+
+            result = {**research_layout_content, "headers": headers}
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error in WriterAgent.run: {e}")
+            # Return a minimal valid structure to prevent downstream errors
+            return {
+                "table_of_contents": "Error generating report",
+                "introduction": "Error generating report",
+                "conclusion": "Error generating report",
+                "sources": ["Error retrieving sources"],
+                "headers": self.get_headers(research_state),
+                "error": str(e)
+            }

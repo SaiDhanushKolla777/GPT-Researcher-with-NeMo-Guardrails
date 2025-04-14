@@ -4,17 +4,33 @@ from .utils.file_formats import \
     write_text_to_md
 
 from .utils.views import print_agent_output
+from loguru import logger
 
 
 class PublisherAgent:
-    def __init__(self, output_dir: str, websocket=None, stream_output=None, headers=None):
+    def __init__(self, output_dir: str, websocket=None, stream_output=None, headers=None, guardrails=None):
         self.websocket = websocket
         self.stream_output = stream_output
         self.output_dir = output_dir
         self.headers = headers or {}
+        self.guardrails = guardrails
         
     async def publish_research_report(self, research_state: dict, publish_formats: dict):
         layout = self.generate_layout(research_state)
+        
+        # Apply guardrails to the final report content if available
+        if self.guardrails:
+            try:
+                safe_layout = await self.guardrails.apply_guardrails(
+                    layout,
+                    agent_type="publisher",
+                    is_input=False
+                )
+                layout = safe_layout
+                logger.info("Applied guardrails to final report content")
+            except Exception as e:
+                logger.error(f"Error applying guardrails to final report: {e}")
+        
         await self.write_report_by_formats(layout, publish_formats)
 
         return layout
@@ -67,5 +83,19 @@ class PublisherAgent:
             await self.stream_output("logs", "publishing", f"Publishing final research report based on retrieved data...", self.websocket)
         else:
             print_agent_output(output="Publishing final research report based on retrieved data...", agent="PUBLISHER")
+        
         final_research_report = await self.publish_research_report(research_state, publish_formats)
+        
+        # Apply guardrails once more before returning the final output
+        if self.guardrails:
+            try:
+                final_research_report = await self.guardrails.apply_guardrails(
+                    final_research_report,
+                    agent_type="publisher",
+                    is_input=False
+                )
+                logger.info("Applied final guardrails check to report before return")
+            except Exception as e:
+                logger.error(f"Error applying final guardrails check: {e}")
+                
         return {"report": final_research_report}

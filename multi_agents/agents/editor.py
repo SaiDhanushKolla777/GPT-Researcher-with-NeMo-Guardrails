@@ -3,6 +3,7 @@ import asyncio
 from typing import Dict, List, Optional
 
 from langgraph.graph import StateGraph, END
+from loguru import logger
 
 from .utils.views import print_agent_output
 from .utils.llms import call_model
@@ -13,10 +14,11 @@ from . import ResearchAgent, ReviewerAgent, ReviserAgent
 class EditorAgent:
     """Agent responsible for editing and managing code."""
 
-    def __init__(self, websocket=None, stream_output=None, headers=None):
+    def __init__(self, websocket=None, stream_output=None, headers=None, guardrails=None):
         self.websocket = websocket
         self.stream_output = stream_output
         self.headers = headers or {}
+        self.guardrails = guardrails
 
     async def plan_research(self, research_state: Dict[str, any]) -> Dict[str, any]:
         """
@@ -36,17 +38,46 @@ class EditorAgent:
 
         print_agent_output(
             "Planning an outline layout based on initial research...", agent="EDITOR")
+        
+        # Apply guardrails to planning input if available
+        if self.guardrails:
+            try:
+                planning_content = prompt[1]["content"]
+                safe_content = await self.guardrails.apply_guardrails(
+                    planning_content,
+                    agent_type="editor",
+                    is_input=True
+                )
+                prompt[1]["content"] = safe_content
+            except Exception as e:
+                logger.error(f"Error applying guardrails to planning input: {e}")
+
         plan = await call_model(
             prompt=prompt,
             model=task.get("model"),
             response_format="json",
+            agent_type="editor"
         )
 
-        return {
+        # Apply guardrails to the plan if needed
+        result = {
             "title": plan.get("title"),
             "date": plan.get("date"),
             "sections": plan.get("sections"),
         }
+        
+        if self.guardrails and result["title"]:
+            try:
+                safe_title = await self.guardrails.apply_guardrails(
+                    result["title"],
+                    agent_type="editor",
+                    is_input=False
+                )
+                result["title"] = safe_title
+            except Exception as e:
+                logger.error(f"Error applying guardrails to title: {e}")
+        
+        return result
 
     async def run_parallel_research(self, research_state: Dict[str, any]) -> Dict[str, List[str]]:
         """
@@ -117,9 +148,9 @@ class EditorAgent:
     def _initialize_agents(self) -> Dict[str, any]:
         """Initialize the research, reviewer, and reviser skills."""
         return {
-            "research": ResearchAgent(self.websocket, self.stream_output, self.headers),
-            "reviewer": ReviewerAgent(self.websocket, self.stream_output, self.headers),
-            "reviser": ReviserAgent(self.websocket, self.stream_output, self.headers),
+            "research": ResearchAgent(self.websocket, self.stream_output, None, self.headers, guardrails=self.guardrails),
+            "reviewer": ReviewerAgent(self.websocket, self.stream_output, self.headers, guardrails=self.guardrails),
+            "reviser": ReviserAgent(self.websocket, self.stream_output, self.headers, guardrails=self.guardrails),
         }
 
     def _create_workflow(self) -> StateGraph:

@@ -10,6 +10,7 @@ class AgentColor(Enum):
     REVIEWER = Fore.CYAN
     REVISOR = Fore.LIGHTWHITE_EX
     MASTER = Fore.LIGHTYELLOW_EX
+    ERROR = Fore.RED  # Add ERROR with red color
 
 
 def print_agent_output(output:str, agent: str="RESEARCHER"):
