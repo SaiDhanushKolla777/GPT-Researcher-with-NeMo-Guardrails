@@ -169,7 +169,7 @@ Exported to `/outputs/run_{timestamp}_{query}`.
 **Sai Dhanush Kolla**  
 🎓 Master's in Data Science, Indiana University  
 💻 Research Assistant — AI & Ethics  
-🌐 [LinkedIn](https://www.linkedin.com/in/ksdhanus) | [GitHub](https://github.com/SaiDhanushKolla777)  
+🌐 [LinkedIn](https://www.linkedin.com/in/kolla-saidhanush) | [GitHub](https://github.com/SaiDhanushKolla777)  
 📧 saidhanushkolla1990@gmail.com
 
 ---
