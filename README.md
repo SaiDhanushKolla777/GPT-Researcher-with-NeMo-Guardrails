@@ -17,6 +17,7 @@
 > ⚙️ **Multi-Agent research system built on top of GPT-Researcher using LangGraph**  
 > 🔐 **This fork integrates NeMo Guardrails for real-time safety, ethical filtering, and content validation**  
 > 🧠  Integrated NeMo Guardrails into the existing Multi-Agent Framework, modifying agent logic and orchestration to enforce safety and context-aware filtering — by  [**Sai Dhanush Kolla**](https://github.com/SaiDhanushKolla777)
+> 
 > 🙌 Original multi-agent architecture developed by [**Assaf Elovic**](https://github.com/assafelovic)
 
 ---
